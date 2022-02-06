@@ -45,7 +45,7 @@ namespace Lesson1_AsyncPprogramming
         {
 
             HttpResponseMessage responseMessage = await client.GetAsync(uri);
-            Console.WriteLine(responseMessage.EnsureSuccessStatusCode());
+            responseMessage.EnsureSuccessStatusCode();
 
             string text = await responseMessage.Content.ReadAsStringAsync();
 
