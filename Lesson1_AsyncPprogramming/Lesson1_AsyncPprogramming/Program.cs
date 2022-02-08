@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -41,6 +42,8 @@ namespace Lesson1_AsyncPprogramming
 
             for (int id = startId; id <= endId; id++)
             {
+                var stopwatch = Stopwatch.StartNew();
+
                 try
                 {
                     Post post = await GetPostAsync(new Uri(url + id), token);
@@ -51,6 +54,8 @@ namespace Lesson1_AsyncPprogramming
                     Console.WriteLine(ex.Message);
                 }
 
+                stopwatch.Stop();
+                Console.WriteLine($"Обработка поста {id} заняло {stopwatch.ElapsedMilliseconds} мс");
             }
 
         }
