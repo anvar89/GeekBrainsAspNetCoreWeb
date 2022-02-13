@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -11,56 +12,34 @@ namespace Lesson1_AsyncPprogramming
 {
     internal class Program
     {
-        static readonly CancellationTokenSource cts = new CancellationTokenSource();
-        static HttpClient client = new HttpClient();
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             string url = "https://jsonplaceholder.typicode.com/posts/";
             string fileName = "result.txt";
             int startId = 4;
             int endId = 13;
 
-            try
+            using (var client = new HttpClient())
+            using (var cts = new CancellationTokenSource())
             {
+                var posts = new List<Task<Post>>();
+
                 cts.CancelAfter(2000);
-                DownloadPostsById(url, fileName, startId, endId, cts.Token).GetAwaiter().GetResult();
-            }
-            catch(OperationCanceledException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-            finally
-            {
-                cts.Dispose();
-            }
-
-            Console.ReadKey();
-        }
-
-        static async Task DownloadPostsById(string url, string fileName, int startId, int endId, CancellationToken token)
-        {
-
-            for (int id = startId; id <= endId; id++)
-            {
-                var stopwatch = Stopwatch.StartNew();
-
-                try
+                
+                for (int id = startId; id <= endId; id++)
                 {
-                    Post post = await GetPostAsync(new Uri(url + id), token);
-                    await WriteTextAsync(fileName, PostPrint(post), token);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
+                    posts.Add(GetPostAsync(new Uri(url + id), client, cts.Token));
                 }
 
-                stopwatch.Stop();
-                Console.WriteLine($"Обработка поста {id} заняло {stopwatch.ElapsedMilliseconds} мс");
+                await Task.WhenAll(posts);
+
+                posts.ForEach(post => File.AppendAllText(fileName, PostPrint(post.Result)));
             }
 
         }
 
-        static async Task<Post> GetPostAsync(Uri uri, CancellationToken token)
+
+        static async Task<Post> GetPostAsync(Uri uri, HttpClient client, CancellationToken token)
         {
 
             HttpResponseMessage responseMessage = await client.GetAsync(uri, token);
@@ -70,18 +49,6 @@ namespace Lesson1_AsyncPprogramming
 
             return JsonConvert.DeserializeObject<Post>(text);
 
-        }
-
-        static async Task WriteTextAsync(string filePath, string text, CancellationToken token)
-        {
-            byte[] encodedText = Encoding.Unicode.GetBytes(text);
-
-            using (FileStream sourceStream = new FileStream(filePath,
-                FileMode.Append, FileAccess.Write, FileShare.None,
-                bufferSize: 4096, useAsync: true))
-            {
-                await sourceStream.WriteAsync(encodedText, 0, encodedText.Length, token);
-            }
         }
 
         static string PostPrint(Post post) => post.UserId + Environment.NewLine +
